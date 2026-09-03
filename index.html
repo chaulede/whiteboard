@@ -3,59 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中文网课互动白板 - 汉字注音与撤销版</title>
-    <!-- 引入 Tailwind CSS 美化界面 -->
+    <title>中文网课互动白板 - 全格式文档导入版</title>
+    <!-- 引入 Tailwind CSS 样式 -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 pinyin-lite 库 -->
-    <script src="https://unpkg.com/pinyin-lite@1.0.0/dist/pinyin-lite.js"></script>
+    <!-- 引入专业级汉语拼音转换库 (pinyin-pro) -->
+    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.16.0/dist/index.js"></script>
+    <!-- 引入解析 PDF、Word、PPT 的轻量级开源库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.16/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         #whiteboardContent {
-            font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            line-height: 1.8;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            line-height: 2.5;
         }
-
-        /* 注音样式：悬浮在汉字上方 */
         .ruby-container {
             position: relative;
             display: inline-block;
-            margin: 0 3px;
+            margin: 0 4px;
             cursor: pointer;
-            border-bottom: 1px dotted #999;
-            transition: background-color 0.2s;
+            border-bottom: 1px dotted #2563eb;
+            background-color: #f8fafc;
+            padding: 0 2px;
+            border-radius: 4px;
         }
-        .ruby-container:hover {
-            background-color: #e0f2fe;
-        }
-
         .ruby-pinyin {
             position: absolute;
-            top: -26px;
+            top: -30px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.5em;
+            font-size: 0.45em;
             color: #0369a1;
             background-color: #fff;
-            padding: 0 3px;
+            padding: 0 4px;
             border-radius: 4px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.2);
             white-space: nowrap;
             pointer-events: none;
-            display: none;
+            font-weight: bold;
         }
-
-        .ruby-container.show-pinyin .ruby-pinyin {
-            display: block;
-        }
-        
         .toolbar-btn {
-            padding: 4px 10px;
+            padding: 6px 10px;
             background-color: #f1f5f9;
             border: 1px solid #cbd5e1;
-            border-radius: 4px;
+            border-radius: 6px;
             font-size: 13px;
-            color: #475569;
+            color: #334155;
             cursor: pointer;
-            margin-right: 5px;
+            font-weight: 500;
         }
         .toolbar-btn:hover {
             background-color: #e2e8f0;
@@ -66,23 +61,22 @@
     <div class="flex flex-col md:flex-row h-[calc(100vh-3rem)] gap-6">
         
         <!-- 左侧：超大互动白板区域 -->
-        <div class="flex-1 bg-white rounded-2xl shadow-lg flex flex-col border-4 border-blue-200 p-4 md:p-6">
-            <!-- 顶部工具栏 -->
+        <div class="flex-1 bg-white rounded-2xl shadow-lg flex flex-col border-4 border-blue-200 p-4 md:p-6 relative">
             <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4 flex-wrap gap-2">
                 <div class="flex items-center">
                     <span class="text-2xl mr-3">📝</span>
-                    <h2 class="text-xl font-bold text-slate-800">中文互动白板 (点击汉字加拼音)</h2>
+                    <h2 class="text-xl font-bold text-slate-800">中文互动白板 (全格式文档导入)</h2>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-sm text-slate-500 mr-1">字号:</span>
-                    <button onclick="changeFontSize(2)" class="toolbar-btn font-bold">A+</button>
-                    <button onclick="changeFontSize(-2)" class="toolbar-btn font-bold">A-</button>
+                    <span class="text-sm text-slate-500">字号:</span>
+                    <button id="btnAPlus" class="toolbar-btn font-bold">A+</button>
+                    <button id="btnAMinus" class="toolbar-btn font-bold">A-</button>
                     <span class="mx-1 text-slate-300">|</span>
-                    <!-- 撤销清空与英汉互译按钮 -->
-                    <button onclick="undoClear()" class="toolbar-btn bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" title="恢复上一次被清空的内容">↩️ 撤销清空</button>
-                    <button onclick="toggleTranslation()" id="transBtn" class="toolbar-btn bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100">🌐 英译互译</button>
-                    <button onclick="clearWhiteboard()" class="toolbar-btn bg-red-50 text-red-700 border-red-200 hover:bg-red-100">🗑️ 清空</button>
-                    <button onclick="copyNotes()" class="toolbar-btn bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100">📋 复制笔记</button>
+                    <button id="btnAddPinyin" class="toolbar-btn bg-emerald-50 text-emerald-700 border-emerald-200">🔤 加拼音</button>
+                    <button id="btnRemovePinyin" class="toolbar-btn bg-orange-50 text-orange-700 border-orange-200">❌ 清除拼音</button>
+                    <button id="btnTranslate" class="toolbar-btn bg-purple-50 text-purple-700 border-purple-200">🌐 翻译</button>
+                    <button id="btnUndo" class="toolbar-btn bg-amber-50 text-amber-700 border-amber-200">↩️ 撤销</button>
+                    <button id="btnClear" class="toolbar-btn bg-red-50 text-red-700 border-red-200">🗑️ 清空</button>
                 </div>
             </div>
 
@@ -91,24 +85,27 @@
                  contenteditable="true" 
                  class="flex-1 w-full p-4 text-xl md:text-2xl text-slate-700 overflow-auto focus:outline-none bg-amber-50/30 rounded-lg border border-slate-200"
             >
-                <p>例如：点击下方的汉字试试看加拼音</p>
-                <p>1. 生词：<span class="ruby-container">热<span class="ruby-pinyin">rè</span></span><span class="ruby-container">情<span class="ruby-pinyin">qíng</span></span>、<span class="ruby-container">菜<span class="ruby-pinyin">cài</span></span><span class="ruby-container">单<span class="ruby-pinyin">dān</span></span>、<span class="ruby-container">点<span class="ruby-pinyin">diǎn</span></span><span class="ruby-container">菜<span class="ruby-pinyin">cài</span></span></p>
-                <p>2. 语法：一边...一边...</p>
-                <p>3. 句子：你想吃点儿什么？</p>
+                <p>欢迎使用中文网课白板！您可以在右侧直接上传 PDF、Word、TXT 或 PPT 教学文件，内容将自动加载到白板中进行拼音标注与翻译。</p>
+            </div>
+
+            <!-- 翻译浮窗 -->
+            <div id="translationPopup" class="hidden absolute bottom-8 left-8 right-8 bg-slate-900 text-white p-4 rounded-xl shadow-2xl border border-purple-400 text-sm z-50 flex justify-between items-center">
+                <div id="translationText">翻译结果...</div>
+                <button id="btnClosePopup" class="bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded text-xs text-white cursor-pointer">关闭</button>
             </div>
             
-            <div class="text-xs text-slate-400 pt-2 mt-2 border-t border-slate-100">提示：点击清空后，如需找回可点击「撤销清空」按钮恢复。</div>
+            <div class="text-xs text-slate-400 pt-2 mt-2 border-t border-slate-100">提示：支持 PDF、Word、TXT、PPT 文件拖入或选择上传。</div>
         </div>
 
         <!-- 右侧：控制面板 -->
-        <div class="w-full md:w-80 bg-white rounded-2xl shadow p-6 flex flex-col space-y-5 border border-slate-200">
+        <div class="w-full md:w-80 bg-white rounded-2xl shadow p-5 flex flex-col space-y-4 border border-slate-200 overflow-y-auto">
             <div class="text-center">
                 <h1 class="text-lg font-bold text-slate-800">📖 智能课堂助手</h1>
-                <p class="text-slate-500 text-xs mt-1">配合白板使用</p>
+                <p class="text-slate-500 text-xs mt-1">文档导入与测试生成</p>
             </div>
             
             <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">📌 学生级别</label>
+                <label class="block text-xs font-medium text-slate-700 mb-1">📌 学生级别</label>
                 <select id="studentLevel" class="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:ring-1 focus:ring-blue-500">
                     <option value="HSK 1">HSK 1</option>
                     <option value="HSK 2">HSK 2</option>
@@ -119,174 +116,310 @@
                     <option value="零基础口语">零基础口语</option>
                 </select>
             </div>
+
             <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">🎯 课程主题</label>
+                <label class="block text-xs font-medium text-slate-700 mb-1">🎯 课程主题</label>
                 <input type="text" id="courseTopic" placeholder="例如：在餐厅点菜" class="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:ring-1 focus:ring-blue-500">
             </div>
 
-            <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                <label class="block text-sm font-medium text-blue-900 mb-1">🔤 快速查词</label>
-                <div class="flex gap-2">
-                    <input type="text" id="searchWord" placeholder="输入词语查拼音" class="flex-1 border border-slate-300 rounded-lg p-2 text-sm bg-white outline-none">
-                    <button onclick="quickTranslate()" class="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700 transition">查询</button>
-                </div>
-                <div id="quickTranslationResult" class="mt-2 text-xs text-slate-700 hidden bg-white p-2 rounded border border-blue-200"></div>
+            <!-- 全格式文档上传区 -->
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <label class="block text-xs font-medium text-slate-700 mb-1">📂 上传教学文档 (PDF/Word/TXT/PPT)</label>
+                <input type="file" id="documentFile" accept=".pdf,.docx,.doc,.txt,.pptx,.ppt" class="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 cursor-pointer">
             </div>
 
-            <div class="flex flex-col gap-3 mt-auto">
-                <button onclick="generateNotes()" class="w-full bg-emerald-600 text-white py-2.5 rounded-lg font-medium hover:bg-emerald-700 transition shadow-sm text-sm">
-                    📚 生成课后复习笔记
+            <div class="flex flex-col gap-2.5 mt-auto pt-2">
+                <button id="btnGenNotes" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-medium hover:bg-emerald-700 transition text-sm cursor-pointer">
+                    📚 生成复习笔记
                 </button>
-                <button onclick="generateExercises()" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition shadow-sm text-sm">
-                    ✍️ 生成下节课测验题
+                <button id="btnDownloadNotes" class="hidden w-full bg-emerald-700 text-white py-1.5 rounded-lg text-xs hover:bg-emerald-800 transition cursor-pointer">
+                    📥 下载复习笔记 (Word格式)
+                </button>
+
+                <button id="btnGenEx" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition text-sm cursor-pointer">
+                    ✍️ 生成全套互动测试题
+                </button>
+                <button id="btnDownloadEx" class="hidden w-full bg-indigo-700 text-white py-1.5 rounded-lg text-xs hover:bg-indigo-800 transition cursor-pointer">
+                    📥 下载测试题 (Word格式)
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- JavaScript 交互逻辑 -->
+    <!-- 逻辑绑定与全格式解析引擎 -->
     <script>
-        const getPinyin = window.pinyin;
-        let lastClearedContent = ""; // 用于暂存被清空的内容
+        const translationDict = {
+            "不管": "No matter / Regardless of",
+            "上菜": "To serve dishes",
+            "招牌菜": "Signature dish",
+            "饮料": "Beverage / Drinks",
+            "我吃米饭": "I eat rice.",
+            "老板上菜": "Boss, please serve the dishes.",
+            "你想吃点儿什么？": "What would you like to eat?",
+            "吃": "To eat",
+            "喝": "To drink",
+            "热情": "Enthusiastic / Warm",
+            "菜单": "Menu",
+            "点菜": "To order food",
+            "欢迎光临": "Welcome!",
+            "老师": "Teacher",
+            "学生": "Student",
+            "生词": "Vocabulary",
+            "语法": "Grammar",
+            "句子": "Sentence"
+        };
 
-        // 点击白板内的汉字切换拼音显示
-        document.getElementById('whiteboardContent').addEventListener('click', function(e) {
-            if (e.target && e.target.classList.contains('ruby-container')) {
-                e.target.classList.toggle('show-pinyin');
-            } else if (e.target && e.target.parentElement && e.target.parentElement.classList.contains('ruby-container')) {
-                e.target.parentElement.classList.toggle('show-pinyin');
-            }
-        });
+        let lastClearedContent = "";
+        let noteContentText = "";
+        let exerciseContentText = "";
 
-        // 字体大小调节逻辑
-        let currentFontSize = 24; 
-        function changeFontSize(delta) {
-            currentFontSize += delta;
-            if (currentFontSize < 14) currentFontSize = 14; 
-            if (currentFontSize > 64) currentFontSize = 64; 
-            document.getElementById('whiteboardContent').style.fontSize = currentFontSize + 'px';
-        }
-
-        // 清空白板（同时备份内容以供撤销）
-        function clearWhiteboard() {
-            const contentDiv = document.getElementById('whiteboardContent');
-            lastClearedContent = contentDiv.innerHTML; // 备份当前白板内容
-            if(confirm("确定要清空白板内容吗？（如误删可点击「撤销清空」恢复）")) {
-                contentDiv.innerHTML = '<p><br></p>';
-                isTranslated = false;
-                document.getElementById('transBtn').innerText = "🌐 英译互译";
-            }
-        }
-
-        // 撤销清空功能
-        function undoClear() {
-            if (!lastClearedContent) {
-                alert('没有找到最近被清空的内容！');
-                return;
-            }
-            document.getElementById('whiteboardContent').innerHTML = lastClearedContent;
-            alert('已成功恢复上一次清空的内容！');
-        }
-
-        // 简易英汉互译模拟对照功能
-        let isTranslated = false;
-        function toggleTranslation() {
-            const contentDiv = document.getElementById('whiteboardContent');
-            const btn = document.getElementById('transBtn');
-            isTranslated = !isTranslated;
-            
-            if (isTranslated) {
-                btn.innerText = "🌐 显示中文";
-                btn.classList.add('bg-purple-200');
-                let html = contentDiv.innerHTML;
-                html += `<hr class="my-2 border-purple-200"><p class="text-sm text-purple-700">【English Translation / 英文对照】：<br>1. New Words: Enthusiastic, Menu, Order food.<br>2. Grammar: While... while...<br>3. Sentence: What would you like to eat?</p>`;
-                contentDiv.innerHTML = html;
-            } else {
-                btn.innerText = "🌐 英译互译";
-                btn.classList.remove('bg-purple-200');
-                alert('已切回中文白板视图');
-            }
-        }
-
-        // 获取纯文本
-        function getCleanText() {
-            return document.getElementById('whiteboardContent').innerText.trim();
-        }
-
-        // 复制笔记
-        function copyNotes() {
-            const text = getCleanText();
-            if (!text) { alert('白板内容为空！'); return; }
-            navigator.clipboard.writeText(text).then(() => {
-                alert('笔记内容已成功复制到剪贴板！');
+        window.addEventListener('DOMContentLoaded', function() {
+            // 字号调节
+            let currentFontSize = 24;
+            document.getElementById('btnAPlus').addEventListener('click', function() {
+                currentFontSize = Math.min(64, currentFontSize + 2);
+                document.getElementById('whiteboardContent').style.fontSize = currentFontSize + 'px';
             });
-        }
+            document.getElementById('btnAMinus').addEventListener('click', function() {
+                currentFontSize = Math.max(14, currentFontSize - 2);
+                document.getElementById('whiteboardContent').style.fontSize = currentFontSize + 'px';
+            });
 
-        // 快速查词
-        function quickTranslate() {
-            const word = document.getElementById('searchWord').value.trim();
-            const resultDiv = document.getElementById('quickTranslationResult');
-            if (!word) { alert('请输入要查询的词语！'); return; }
-            
-            resultDiv.classList.remove('hidden');
-            const pinyinArray = getPinyin(word);
-            const pinyinStr = pinyinArray && pinyinArray.length > 0 ? pinyinArray.join(' ') : '暂无拼音';
-            resultDiv.innerHTML = `
-                <strong>【${word}】</strong><br>
-                • <strong>拼音</strong>：${pinyinStr}<br>
-                • <strong>释义</strong>：[演示词典释义]<br>
-                • <strong>造句</strong>：老师在课堂上讲解了<strong>${word}</strong>。
-            `;
-        }
+            // 拼音标注
+            document.getElementById('btnAddPinyin').addEventListener('click', function() {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+                const range = selection.getRangeAt(0);
+                const selectedText = selection.toString().trim();
+                if (!selectedText) { alert('请先用鼠标选中需要加拼音的汉字！'); return; }
 
-        // 辅助函数：将纯文本中的汉字自动包装为带拼音的标签
-        function wrapTextWithPinyin(text) {
-            let html = '';
-            for (let char of text) {
-                if (/[\u4e00-\u9fa5]/.test(char)) {
-                    const pyArr = getPinyin(char);
-                    const py = pyArr && pyArr.length > 0 ? pyArr[0] : '';
-                    html += `<span class="ruby-container">${char}<span class="ruby-pinyin">${py}</span></span>`;
-                } else {
-                    html += char;
+                let fragmentHtml = "";
+                for (let char of selectedText) {
+                    if (/[\u4e00-\u9fa5]/.test(char)) {
+                        let py = "hàn";
+                        try {
+                            if (typeof window.pinyinPro !== 'undefined' && window.pinyinPro.pinyin) {
+                                py = window.pinyinPro.pinyin(char, { toneType: 'symbol' });
+                            }
+                        } catch (e) {
+                            py = "hàn";
+                        }
+                        fragmentHtml += `<span class="ruby-container">${char}<span class="ruby-pinyin">${py}</span></span>`;
+                    } else {
+                        fragmentHtml += char === ' ' ? '&nbsp;' : char;
+                    }
                 }
-            }
-            return html;
-        }
-
-        // 生成课后复习笔记
-        function generateNotes() {
-            const topic = document.getElementById('courseTopic').value.trim() || '未命名课程';
-            const level = document.getElementById('studentLevel').value;
-            const notes = getCleanText();
-
-            if (!notes) { alert('请先在白板中输入课堂知识点！'); return; }
-
-            let rawHtml = `【复习笔记】课程主题: ${topic} (${level})\n\n---\n\n${notes}\n\n---\n💡 老师寄语：请课下多读多练！`;
-            let formattedHtml = '';
-            rawHtml.split('\n').forEach(line => {
-                formattedHtml += `<p>${wrapTextWithPinyin(line)}</p>`;
+                range.deleteContents();
+                const div = document.createElement("div");
+                div.innerHTML = fragmentHtml;
+                let frag = document.createDocumentFragment(), node;
+                while ((node = div.firstChild)) { frag.appendChild(node); }
+                range.insertNode(frag);
+                selection.removeAllRanges();
             });
 
-            document.getElementById('whiteboardContent').innerHTML = formattedHtml;
-            alert('已成功将白板整理为课后复习笔记！');
-        }
+            // 清除拼音
+            document.getElementById('btnRemovePinyin').addEventListener('click', function() {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+                const range = selection.getRangeAt(0);
+                let container = range.commonAncestorContainer;
+                if (container.nodeType === 3) container = container.parentNode;
 
-        // 生成下次课前测验题
-        function generateExercises() {
-            const topic = document.getElementById('courseTopic').value.trim() || '本课';
-            const level = document.getElementById('studentLevel').value;
-            
-            let rawExercises = `【下次课前小测验】课程主题: ${topic} (${level})\n\n一、 选词填空\n1. 这节课学习的主题是关于「${topic}」，请用学过的生词填空：(          )\n\n二、 连词成句\n1. 请根据课堂重点写出正确的汉字句子：\n(          )\n\n三、 课堂问答\n1. 请用学过的生词回答老师的问题。`;
-            
-            let formattedHtml = '';
-            rawExercises.split('\n').forEach(line => {
-                formattedHtml += `<p>${wrapTextWithPinyin(line)}</p>`;
+                let rubyElements = [];
+                if (container.classList && container.classList.contains('ruby-container')) {
+                    rubyElements.push(container);
+                } else if (container.querySelectorAll) {
+                    container.querySelectorAll('.ruby-container').forEach(r => {
+                        if (selection.containsNode(r, true)) rubyElements.push(r);
+                    });
+                }
+                if (rubyElements.length === 0) {
+                    let parentRuby = selection.anchorNode.parentElement.closest('.ruby-container');
+                    if (parentRuby) rubyElements.push(parentRuby);
+                }
+
+                if (rubyElements.length > 0) {
+                    rubyElements.forEach(ruby => {
+                        const plainChar = ruby.firstChild.textContent;
+                        ruby.outerHTML = plainChar;
+                    });
+                    selection.removeAllRanges();
+                } else {
+                    alert('请先用鼠标选中需要清除拼音的汉字词汇！');
+                }
             });
 
-            document.getElementById('whiteboardContent').innerHTML = formattedHtml;
-            alert('已成功生成下次课的测验题！');
-        }
+            // 翻译
+            document.getElementById('btnTranslate').addEventListener('click', async function() {
+                const selection = window.getSelection();
+                let selectedText = selection.toString().trim();
+                const popup = document.getElementById('translationPopup');
+                const textContainer = document.getElementById('translationText');
+
+                if (!selectedText) { alert('请先在白板中用鼠标划选需要翻译的词汇或句子！'); return; }
+
+                popup.classList.remove('hidden');
+                textContainer.innerHTML = `<div><strong>🔤 划选内容：</strong>${selectedText}</div><div class="text-yellow-300 text-sm mt-1"><strong>英文翻译：</strong>正在查询...</div>`;
+
+                let cleanText = selectedText.replace(/[。，、！？；：“”‘’（）.,!?]/g, '');
+                if (translationDict[cleanText]) {
+                    textContainer.innerHTML = `<div><strong>🔤 划选内容：</strong>${selectedText}</div><div class="text-yellow-300 text-sm mt-1"><strong>英文翻译：</strong>${translationDict[cleanText]}</div>`;
+                    return;
+                }
+
+                try {
+                    let response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(selectedText)}&langpair=zh|en`);
+                    let data = await response.json();
+                    if (data && data.responseData && data.responseData.translatedText) {
+                        textContainer.innerHTML = `<div><strong>🔤 划选内容：</strong>${selectedText}</div><div class="text-yellow-300 text-sm mt-1"><strong>英文翻译：</strong>${data.responseData.translatedText}</div>`;
+                    } else {
+                        textContainer.innerHTML = `<div><strong>🔤 划选内容：</strong>${selectedText}</div><div class="text-yellow-300 text-sm mt-1"><strong>英文翻译：</strong>(Expression: ${selectedText})</div>`;
+                    }
+                } catch (e) {
+                    textContainer.innerHTML = `<div><strong>🔤 划选内容：</strong>${selectedText}</div><div class="text-yellow-300 text-sm mt-1"><strong>英文翻译：</strong>(Expression: ${selectedText})</div>`;
+                }
+            });
+
+            document.getElementById('btnClosePopup').addEventListener('click', function() {
+                document.getElementById('translationPopup').classList.add('hidden');
+            });
+
+            // 撤销与清空
+            document.getElementById('btnUndo').addEventListener('click', function() {
+                if (!lastClearedContent) { alert('没有可撤销的内容！'); return; }
+                document.getElementById('whiteboardContent').innerHTML = lastClearedContent;
+                alert('已成功撤销恢复！');
+            });
+
+            document.getElementById('btnClear').addEventListener('click', function() {
+                const contentDiv = document.getElementById('whiteboardContent');
+                lastClearedContent = contentDiv.innerHTML;
+                if(confirm("确定清空白板？")) contentDiv.innerHTML = '<p><br></p>';
+            });
+
+            // 全格式文档上传解析引擎 (支持 PDF, Word, TXT, PPT)
+            document.getElementById('documentFile').addEventListener('change', async function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const fileName = file.name.toLowerCase();
+                const whiteboard = document.getElementById('whiteboardContent');
+                
+                try {
+                    if (fileName.endsWith('.txt')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            whiteboard.innerHTML += `<p>--- 导入文件: ${file.name} ---</p><p>${e.target.result.replace(/\n/g, '</p><p>')}</p>`;
+                            alert("TXT 文本导入成功！");
+                        };
+                        reader.readAsText(file, 'UTF-8');
+                    } 
+                    else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            mammoth.extractRawText({ arrayBuffer: e.target.result })
+                                .then(result => {
+                                    whiteboard.innerHTML += `<p>--- 导入 Word: ${file.name} ---</p><p>${result.value.replace(/\n/g, '</p><p>')}</p>`;
+                                    alert("Word 文档导入成功！");
+                                })
+                                .catch(err => alert("Word 解析失败，请尝试另存为 TXT 后导入。"));
+                        };
+                        reader.readAsArrayBuffer(file);
+                    } 
+                    else if (fileName.endsWith('.pdf')) {
+                        const reader = new FileReader();
+                        reader.onload = async function(e) {
+                            const typedarray = new Uint8Array(e.target.result);
+                            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                            let fullText = "";
+                            for (let i = 1; i <= pdf.numPages; i++) {
+                                const page = await pdf.getPage(i);
+                                const textContent = await page.getTextContent();
+                                fullText += textContent.items.map(item => item.str).join(' ') + "\n";
+                            }
+                            whiteboard.innerHTML += `<p>--- 导入 PDF: ${file.name} ---</p><p>${fullText.replace(/\n/g, '</p><p>')}</p>`;
+                            alert("PDF 文档导入成功！");
+                        };
+                        reader.readAsArrayBuffer(file);
+                    } 
+                    else if (fileName.endsWith('.pptx') || fileName.endsWith('.ppt')) {
+                        // PPT 本质是压缩包，利用 JSZip 深度提取幻灯片文本
+                        const reader = new FileReader();
+                        reader.onload = async function(e) {
+                            try {
+                                const zip = new JSZip();
+                                const zipContent = await zip.loadAsync(e.target.result);
+                                let pptText = "";
+                                // PPT 的文本存储在 ppt/slides/slide*.xml 中
+                                const slideFiles = Object.keys(zipContent.files).filter(filename => filename.startsWith('ppt/slides/slide'));
+                                for (let slidePath of slideFiles) {
+                                    const slideXml = await zipContent.files[slidePath].async("string");
+                                    // 简单正则提取 xml 标签中的文字
+                                    const matches = slideXml.match(/<a:t[^>]*>(.*?)<\/a:t>/g);
+                                    if (matches) {
+                                        pptText += matches.map(m => m.replace(/<\/?[^>]+(>|$)/g, "")).join(" ") + "\n";
+                                    }
+                                }
+                                if (pptText.trim() === "") {
+                                    pptText = "未能自动提取到 PPT 文本，建议将 PPT 另存为 PDF 或 TXT 后导入。";
+                                }
+                                whiteboard.innerHTML += `<p>--- 导入 PPT: ${file.name} ---</p><p>${pptText.replace(/\n/g, '</p><p>')}</p>`;
+                                alert("PPT 幻灯片文本提取成功！");
+                            } catch (err) {
+                                alert("PPT 解析失败，建议将其导出为 PDF 或 TXT 文件后再上传。");
+                            }
+                        };
+                        reader.readAsArrayBuffer(file);
+                    } else {
+                        alert("不支持的文件格式！请上传 PDF、Word、TXT 或 PPT 文件。");
+                    }
+                } catch (err) {
+                    alert("文件解析出错，请检查文件是否损坏。");
+                }
+            });
+
+            // 生成复习笔记
+            document.getElementById('btnGenNotes').addEventListener('click', function() {
+                const topic = document.getElementById('courseTopic').value.trim() || '综合中文课';
+                const level = document.getElementById('studentLevel').value;
+                const text = document.getElementById('whiteboardContent').innerText.trim();
+
+                if (!text) { alert('白板内容不能为空！'); return; }
+
+                noteContentText = `【复习笔记】课程主题: ${topic} (${level})\n\n----------------------------------------\n${text}\n----------------------------------------\n💡 老师寄语：请课下认真复习生词与句型，下次课前进行小测验！`;
+                document.getElementById('btnDownloadNotes').classList.remove('hidden');
+                alert('复习笔记已成功生成，可点击下方按钮下载 Word 兼容文档！');
+            });
+
+            document.getElementById('btnDownloadNotes').addEventListener('click', function() {
+                const blob = new Blob(['\ufeff' + noteContentText], { type: 'application/msword' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${document.getElementById('courseTopic').value || '课程'}_复习笔记.doc`;
+                a.click();
+            });
+
+            // 生成测验题
+            document.getElementById('btnGenEx').addEventListener('click', function() {
+                const topic = document.getElementById('courseTopic').value.trim() || '日常交流';
+                const level = document.getElementById('studentLevel').value;
+
+                exerciseContentText = `【下次课前互动小测验】\n课程主题: ${topic} | 学生级别: ${level}\n========================================\n\n一、 挖空选词 (根据课文内容填入正确词语)\n1. 服务员，请先帮我们(          )几道招牌菜。\n2. 这家的饮品很好喝，我想再点一(          )。\n\n二、 选词入句 (使用本课重点句型造句)\n1. (一边...一边...) ________________________________________\n\n三、 中英文匹配 (连线或写出英文意思)\n1. 招牌菜 -> (                  )\n2. 饮料 -> (                  )\n\n四、 问答互动 (根据答案说出问题 / 根据问题回答)\n1. 问：你想喝点儿什么饮料？\n   答：________________________________________\n\n五、 阅读理解小短文\n今天我们在饭馆点了很多菜，服务员态度非常热情。我们一边吃饭一边聊天，感觉非常开心。\n问题：服务员的态度怎么样？大家是一边做什么一边做什么？\n答：________________________________________`;
+
+                document.getElementById('btnDownloadEx').classList.remove('hidden');
+                alert('全套定制测试题已生成，可点击下方按钮下载 Word 兼容文档！');
+            });
+
+            document.getElementById('btnDownloadEx').addEventListener('click', function() {
+                const blob = new Blob(['\ufeff' + exerciseContentText], { type: 'application/msword' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${document.getElementById('courseTopic').value || '课程'}_课前测验题.doc`;
+                a.click();
+            });
+        });
     </script>
 </body>
 </html>
